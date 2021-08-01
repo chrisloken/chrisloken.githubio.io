@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<style>
+
+div {
+	border:  1px solid gray;
+}
+  
+h1 {
+	text-indent:  100px;
+}
+  
+</style>
+<body>
+<div>
+<h1>State of Oregon 2019-2021 Budget Explorer</h1>
+</div>
+
+
+<div id = "container" style = "display: flex;">
+
+
+	<svg id = "budget" width = "1000" height = "900"></svg>
+
+
+</div>
+
+<script>
+
+//Create SVG Canvas
+  
+	var svg = d3.select("#budget"),
+		margin = 350,
+		width = svg.attr("width") - (margin*.5),
+		height = svg.attr("height") - margin ;
+		axisheight = height + 30
+
+ //setup number formatter for billions
+	var formatThreeSig = d3.format(".3s");
+
+	function formatBudget(d) {
+		var toFormat = formatThreeSig(d);
+		switch (toFormat[toFormat.length -1]){
+			case "G": return toFormat.slice(0,-1) + "B";
+		}
+		return toFormat;
+	}
+
+//create scales
+  
+ 	var xScale = d3.scaleBand().range ([0, width]).padding(0.4),
+        yScale = d3.scaleLinear().range ([550,0]);
+
+//create graph area with translation
+  
+	var g = svg.append("g")
+			.attr("transform", "translate(" + 100 + "," + 100 + ")");
+
+//load data
+	 d3.csv("https://raw.githubusercontent.com/chrisloken/416_project/main/Budgeted_Revenue_2019-21.csv", function(error, data) {
+	 	if (error) {
+	 		throw error;
+	 	}
+     
+    //sort data by total budgeted amount descending
+
+	 	sortedData = data.slice().sort((a,b) => d3.descending(parseInt(a.total),parseInt(b.total)));
+
+	 	var totalBudget = 181182811007; //variable for share calculations
+
+    //set domains for scales based on dataset
+	 	xScale.domain(sortedData.map(function(d) { return d.agency; }));
+    yScale.domain([0, d3.max(sortedData, function(d) { return parseInt(d.total); })]);
+
+        var xAxis = g.append("g")
+         .attr("transform", "translate(0," + height + ")")
+
+         .call(d3.axisBottom(xScale))
+         	.selectAll("text")
+         	.attr("transform", "rotate(-90)")
+         	.attr("dx", "-.8em")
+            .attr("dy", "-.6em")
+         	.style("text-anchor", "end");
+         
+
+        var yAxis = g.append("g")
+         .call(d3.axisLeft(yScale).tickFormat(function(d){
+             return "$" + formatBudget(d);
+         }).ticks(10))
+         .append("text")
+         .attr("y", 6)
+         .attr("id", "yaxis")
+         .attr("dy", "0.71em")
+         .attr("text-anchor", "end")
+         .text("value");
+
+         g.selectAll("rect")
+         .data(sortedData)
+         .enter().append("rect")
+         .attr("x", function(d) { return xScale(d.agency); })
+         .attr("y", function(d) { return yScale(parseInt(d.total)); })
+         .attr("width", xScale.bandwidth())
+         .attr("height", function(d) { return height - yScale(parseInt(d.total)); })
+         .attr("id", "graphRect")
+         //.on("mouseover", function(d) { updateTooltip(d);})
+         //.on("mousemove", function(){return tooltip.style("top", (d3.event.pageY-10)+"px").style("left",(d3.event.pageX+10)+"px");})
+      	 //.on("mouseout", function(){return tooltip.style("visibility", "hidden");});
+
+      	 g.selectAll("#rolloverRect")
+      	 	.data(sortedData)
+      	 	.enter().append("rect")
+      	 	.attr("x", function(d) { return xScale(d.agency); })
+      	 	.attr("y", "0" )
+      	 	.attr("width", xScale.bandwidth()*1.8)
+      	 	.attr("height", "550")
+      	 	.attr("position", "absolute")
+      	 	.attr("left", function(d, i) { return i*xScale.bandwidth()})
+      	 	.attr("opacity", ".05")
+      	 	.on("mouseover", function(d) { d3.select(this).attr("fill", "red"); updateTooltip(d);})
+      	 	.on("mouseout", function(d) { d3.select(this).attr("fill", "black"); resetTooltip();});
+
+
+		 var tooltipText1 = "Total"; 
+		 var tooltipText2 = "$181B"; 
+		 var tooltipText3 = "100%"; 
+		 var tooltipText4 = "14%";
+		 var tooltipText5 = "13%";
+		 var tooltipText6 = "1.2%";
+		 var tooltipText7 = "72%";
+		 var textCenter = "67"
+
+		//Add Tooltip Items to svg
+
+		 svg.append("text")
+		 		.attr("id", "tooltip-department")
+		 		.attr("x", "140")
+		 		.attr("y", "25")
+		 		.style("font", "14px Verdana")
+		 		.text(tooltipText1); 	
+		 svg.append("text")
+		 		.attr("id", "tooltip-budget")
+		 		.attr("x", "130")
+		 		.attr("y", textCenter)
+		 		.style("font", "32px Verdana")
+		 		.text(tooltipText2);
+		 svg.append("text")
+		 		.attr("id", "tooltip-department")
+		 		.attr("x", "295")
+		 		.attr("y", "85")
+		 		.style("font", "14px Verdana")
+		 		.text("of Total"); 		
+		 svg.append("text")
+		 		.attr("id", "tooltip-percent")
+		 		.attr("x", "280")
+		 		.attr("y", textCenter)
+		 		.style("font", "32px Verdana")
+		 		.text(tooltipText3);
+		 svg.append("text")
+		 		// .attr("id", "tooltip-percent")
+		 		.attr("x", "575")
+		 		.attr("y", "25")
+		 		.style("font", "14px Verdana")
+		 		.text("Funding Source");
+		 svg.append("text")
+		 		// .attr("id", "tooltip-percent")
+		 		.attr("x", "425")
+		 		.attr("y", "85")
+		 		.style("font", "12px Verdana")
+		 		.text("Federal Funds");
+	     svg.append("text")
+		 		// .attr("id", "tooltip-percent")
+		 		.attr("x", "542")
+		 		.attr("y", "85")
+		 		.style("font", "12px Verdana")
+		 		.text("General Funds");
+		 svg.append("text")
+		 		// .attr("id", "tooltip-percent")
+		 		.attr("x", "659")
+		 		.attr("y", "85")
+		 		.style("font", "12px Verdana")
+		 		.text("Lottery Funds");
+		 svg.append("text")
+		 		// .attr("id", "tooltip-percent")
+		 		.attr("x", "775")
+		 		.attr("y", "85")
+		 		.style("font", "12px Verdana")
+		 		.text("Other Funds");
+		 svg.append("text")
+		 		.attr("id", "tooltip-federal")
+		 		.attr("x", "425")
+		 		.attr("y", textCenter)
+		 		.style("font", "32px Verdana")
+		 		.text(tooltipText4);
+		 svg.append("text")
+		 		.attr("id", "tooltip-general")
+		 		.attr("x", "542")
+		 		.attr("y", textCenter)
+		 		.style("font", "32px Verdana")
+		 		.text(tooltipText5);
+		 svg.append("text")
+		 		.attr("id", "tooltip-lottery")
+		 		.attr("x", "659")
+		 		.attr("y", textCenter)
+		 		.style("font", "32px Verdana")
+		 		.text(tooltipText6);
+		 svg.append("text")
+		 		.attr("id", "tooltip-other")
+		 		.attr("x", "775")
+		 		.attr("y", textCenter)
+		 		.style("font", "32px Verdana")
+		 		.text(tooltipText7);
+
+		 
+		 //updateTooltip replaces contents of tooltip with alternate data
+
+		 function updateTooltip (d) {
+
+		 	svg.select("#tooltip-department").text(d.agency);
+		 	svg.select("#tooltip-budget").text("$" + formatBudget(d.total));
+		 	var budget_share = (Math.round((parseInt(d.total) / totalBudget)*10000))/100;
+		 	svg.select("#tooltip-percent").text(budget_share + "%");
+		 	svg.select("#tooltip-federal").text(
+		 			Math.round((parseInt(d.federal_funds) / parseInt(d.total))*100) + "%"
+		 		);
+		 	svg.select("#tooltip-general").text(
+		 			Math.round((parseInt(d.genderal_funds) / parseInt(d.total))*100) + "%"
+		 		);
+		 	svg.select("#tooltip-lottery").text(
+		 			Math.round((parseInt(d.lottery_funds) / parseInt(d.total))*100) + "%"
+		 		);
+		 	svg.select("#tooltip-other").text(
+		 			Math.round((parseInt(d.other_funds) / parseInt(d.total))*100) + "%"
+		 		);
+
+
+		 }
+
+		 //resetTooltip resets tooltip to total values
+
+		 function resetTooltip() {
+		 	svg.select("#tooltip-department").text(tooltipText1);
+		 	svg.select("#tooltip-budget").text(tooltipText2);
+		 	svg.select("#tooltip-percent").text(tooltipText3);
+		 	svg.select("#tooltip-federal").text(tooltipText4);
+		 	svg.select("#tooltip-general").text(tooltipText5);
+		 	svg.select("#tooltip-lottery").text(tooltipText6);
+		 	svg.select("#tooltip-other").text(tooltipText7);
+
+
+		 }
+
+		 //create zoom function for yaxis
+
+		 function zoomY(yMax) {
+
+		 	yScale.domain([0, yMax]);
+				g.selectAll("rect")
+			         .data(sortedData)
+			         .transition()
+			         .duration(1000)
+			         .attr("x", function(d) { return xScale(d.agency); })
+			         .attr("y", function(d) { return yScale(parseInt(d.total)); })
+			         .attr("width", xScale.bandwidth())
+			         .attr("height", function(d) { return height - yScale(parseInt(d.total)); })
+
+			         ;
+
+			     g.selectAll(".tick").remove();
+			  
+
+			    var yAxis = g.append("g")
+		         .call(d3.axisLeft(yScale).tickFormat(function(d){
+		             return "$" + formatBudget(d);
+		         }).ticks(10))
+		         .append("text")
+		         .attr("y", 6)
+		         .attr("id", "yaxis")
+		         .attr("dy", "0.71em")
+		         .attr("text-anchor", "end")
+		         .text("value");
+
+		        var xAxis = g.append("g")
+			         .attr("transform", "translate(0," + height + ")")
+
+			         .call(d3.axisBottom(xScale))
+			         	.selectAll("text")
+			         	.attr("transform", "rotate(-90)")
+			         	.attr("dx", "-.8em")
+			            .attr("dy", "-.6em")
+			         	.style("text-anchor", "end");
+
+		 }
+
+
+
+		 //------------------------------ STORY STATES ---------------
+
+		 //Set Welcome Scene
+
+		 var welcomeText1 = "Welcome to the State of Oregon 2019-2021 Budget Explorer."; 
+		 var welcomeText2 = "This graph allows you to see where the state projects to spend revenue and ";
+		 var welcomeText3 = "also view, at a high level, what the source of that revenue will be.";
+		 var welcomeText4 = "";
+
+		 var storyState = "Welcome";
+
+		 svg.append("text").attr("id", "description-text1").attr("x", "340").attr("y", "300").text(welcomeText1);
+		 svg.append("text").attr("id", "description-text2").attr("x", "340").attr("y", "320").text(welcomeText2);
+		 svg.append("text").attr("id", "description-text3").attr("x", "340").attr("y", "340").text(welcomeText3);
+		 svg.append("text").attr("id", "description-text4").attr("x", "340").attr("y", "360").text(welcomeText4);
+		 svg.append("rect").attr("x", "800").attr("y", "380").attr("height", "30").attr("width", "70").attr("fill", "lightcoral").attr("id", "next-rect")
+		 	.on("mouseover", function(d) {
+			 	d3.select(this).attr("fill", "crimson")
+			 	})
+		 	.on("mouseout", function(d) {d3.select(this).attr("fill", "lightcoral")})
+		 	.on("click", function(d) {return nextButtonClick()});
+		 svg.append("text").attr("x", "815").attr("y", "400").text("Next").attr("id", "next").on("click", function(d) {return nextButtonClick()});;
+	
+		 //Define Other Scenes and end with Exploration Mode as the Next Button is clicked
+
+		function nextButtonClick() {	
+			if (storyState == "Welcome"){
+				//Set PERS Story State
+				storyState = "PERS";
+
+				//update tooltip display
+
+				svg.select("#tooltip-department").text("Public Employees Retirement System, Oregon");
+			 	svg.select("#tooltip-budget").text("$95.5");
+			 	svg.select("#tooltip-percent").text("52.73%");
+			 	svg.select("#tooltip-federal").text("0%");
+			 	svg.select("#tooltip-general").text("0%");
+			 	svg.select("#tooltip-lottery").text("0%");
+			 	svg.select("#tooltip-other").text("100%");
+
+			 	//draw highlight rectangle around PERS
+
+			 	svg.append("rect")
+			 		.attr("stroke", "red")
+			 		.attr("x", "102" )
+			 		.attr("y", "100")
+			 		.attr("width", "11")
+			 		.attr("height", "550")
+			 		.attr("stroke-width", "3")
+			 		.attr("fill", "none")
+			 		.attr("id", "highlight-rect");
+						
+				persText1 = "The Oregon Public Employees Retirement System accounts for the largest portion of the";
+				persText2 = "state budget.  This expendeture is funded almost exclusively through the other category";
+				persText3 = "as investment returns within the pension system provide much of this revenue.";
+				persText4 = "We'll now rescale the view to get a better picture of the rest of the budget.";
+
+				svg.select("#description-text1").text(persText1);
+				svg.select("#description-text2").text(persText2);
+				svg.select("#description-text3").text(persText3);
+				svg.select("#description-text4").text(persText4);
+
+
+			}
+			else if (storyState == "PERS"){
+
+				//update y-axis to new max and rescale axis
+
+				zoomY(24000000000);
+
+			      //update highlight box
+
+			      svg.select("#highlight-rect")
+			      		.transition().duration(1000)
+			      		.attr("x", "113");
+
+			    //update tooltip display
+
+				svg.select("#tooltip-department").text("Oregon Health Authority");
+			 	svg.select("#tooltip-budget").text("$23.8B");
+			 	svg.select("#tooltip-percent").text("13.14%");
+			 	svg.select("#tooltip-federal").text("54%");
+			 	svg.select("#tooltip-general").text("11%");
+			 	svg.select("#tooltip-lottery").text("0%");
+			 	svg.select("#tooltip-other").text("35%");
+
+			 	ohaText1 = "The Oregon Health Authority is primarily funded by the Federal Government";
+				ohaText2 = "though significant funds come though general funds (tax dollars) and ";
+				ohaText3 = "through other funds.";
+				ohaText4 = "We'll now rescale once more to get a better picture of the rest of the budget.";
+
+				svg.select("#description-text1").text(ohaText1);
+				svg.select("#description-text2").text(ohaText2);
+				svg.select("#description-text3").text(ohaText3);
+				svg.select("#description-text4").text(ohaText4);
+
+
+				storyState = "Oregon Health";
+				console.log("Oregon_Health");
+			}
+
+			else if (storyState == "Oregon Health"){
+				//update y-axis to new max and rescale axis
+
+				zoomY(14000000000);
+
+			    //update highlight box
+
+			      svg.select("#highlight-rect")
+			      		.transition().duration(1000)
+			      		.attr("x", "123")
+			      		.attr("y", "130")
+			      		.attr("height", "520");
+
+			      svg.append("rect")
+			 		.attr("stroke", "red")
+			 		.attr("x", "177" )
+			 		.attr("y", "532")
+			 		.attr("width", "11")
+			 		.attr("height", "119")
+			 		.attr("stroke-width", "3")
+			 		.attr("fill", "none")
+			 		.attr("id", "highlight-rect");
+
+			    //update tooltip display
+
+				svg.select("#tooltip-department").text("Education, Department of");
+			 	svg.select("#tooltip-budget").text("$13.2B");
+			 	svg.select("#tooltip-percent").text("7.26%");
+			 	svg.select("#tooltip-federal").text("12%");
+			 	svg.select("#tooltip-general").text("66%");
+			 	svg.select("#tooltip-lottery").text("4%");
+			 	svg.select("#tooltip-other").text("19%");
+
+			 	eduText1 = "The Department of Eduction is the third largest line item in the budget";
+				eduText2 = "and is funded largely through tax dollars (general funds). Together with";
+				eduText3 = "the Coordinating Commision for Higher Education, educational spending makes";
+				eduText4 = "up 9% of the total budget and nearly half of the General Fund budget.";
+
+				svg.select("#description-text1").text(eduText1);
+				svg.select("#description-text2").text(eduText2);
+				svg.select("#description-text3").text(eduText3);
+				svg.select("#description-text4").text(eduText4);
+
+
+				storyState = "Education";
+				console.log("Education")
+			}
+
+
+			else if (storyState == "Education"){
+
+				svg.selectAll("#highlight-rect").remove();
+
+				var zoomParameter = 0;
+
+				var zoomData = [96000000000, 24000000000, 14000000000, 7000000000];
+
+				zoomY(zoomData[0]);
+
+
+
+				expText1 = "Explore the entire budget.  Roll the mouse over different";
+				expText2 = "departments, and zoom the axis with the buttons in the lower left";
+				expText3 = "";
+				expText4 = "";
+
+				svg.select("#description-text1").text(expText1);
+				svg.select("#description-text2").text(expText2);
+				svg.select("#description-text3").text(expText3);
+				svg.select("#description-text4").text(expText4);
+
+				svg.select("#next").text("Explore");
+
+				//create zoom buttons
+
+				svg.append("rect").attr("x", "40").attr("y", "670").attr("width", "20").attr("height", "20").attr("fill", "lightcoral").attr("stroke", "black").attr("id", "zoomOutButtonRect")
+					.on("mouseover", function(d) {
+					 	d3.select(this).attr("fill", "crimson")
+					 	})
+		 			.on("mouseout", function(d) {d3.select(this).attr("fill", "lightcoral")})
+		 			.on("click", function(d) { zoomParameter = Math.max(zoomParameter -1, 0); zoomY(zoomData[zoomParameter]);});
+				svg.append("rect").attr("x", "70").attr("y", "670").attr("width", "20").attr("height", "20").attr("fill", "lightcoral").attr("stroke", "black").attr("id", "zoomInButtonRect")
+						.on("mouseover", function(d) {
+						 	d3.select(this).attr("fill", "crimson")
+						 	})
+			 			.on("mouseout", function(d) {d3.select(this).attr("fill", "lightcoral")})
+			 			.on("click", function(d) { zoomParameter = Math.min(zoomParameter +1, 3); zoomY(zoomData[zoomParameter]);});
+			    svg.append("text")
+			 		.attr("x", "76")
+			 		.attr("y", "684")
+			 		.attr("id", "zoomInButton")
+			 		.style("font", "12px Verdana")
+			 		.text("+")
+			 		.on("mouseover", function(d) {
+						 	svg.select("#zoomInButtonRect").attr("fill", "crimson")
+						 	})
+			 			.on("mouseout", function(d) {svg.select("#zoomInButtonRect").attr("fill", "lightcoral")})
+			 			.on("click", function(d) { zoomParameter = Math.min(zoomParameter +1, 3); zoomY(zoomData[zoomParameter]);});;
+			 	svg.append("text")
+			 		.attr("x", "47")
+			 		.attr("y", "684")
+			 		.attr("id", "zoomOutButton")
+			 		.style("font", "12px Verdana")
+			 		.text("-")
+			 		.on("mouseover", function(d) {
+					 	svg.select("zoomOutButtonRect").attr("fill", "crimson")
+					 	})
+		 			.on("mouseout", function(d) {svg.select("zoomOutButtonRect").attr("fill", "lightcoral")})
+		 			.on("click", function(d) { zoomParameter = Math.max(zoomParameter -1, 0); zoomY(zoomData[zoomParameter]);});
+
+
+				storyState = "Explore";
+				console.log("Explore");
+			}
+
+			else if (storyState == "Explore"){
+
+				svg.selectAll("#highlight-rect").remove();
+
+
+
+				expText1 = "";
+				expText2 = "";
+				expText3 = "";
+				expText4 = "";
+
+				svg.select("#description-text1").text(expText1);
+				svg.select("#description-text2").text(expText2);
+				svg.select("#description-text3").text(expText3);
+				svg.select("#description-text4").text(expText4);
+
+				svg.select("#next").remove();
+				svg.select("#next-rect").remove();
+				
+				
+			}
+
+
+			//svg.select("#description-text1").text(welcomeText2);
+		}
+        
+	});
+
+
+
+
+	
+
+
+
+
+
+</script>
+
+</body>
+</html>
